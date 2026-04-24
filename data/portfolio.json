@@ -1,0 +1,154 @@
+{
+  "holdings": [
+    {
+      "ticker": "RELIANCE",
+      "name": "Reliance Industries",
+      "type": "Equity",
+      "sector": "Energy/Conglomerate",
+      "quantity": 50,
+      "avg_cost": 2400,
+      "current_price": 2850,
+      "currency": "INR"
+    },
+    {
+      "ticker": "INFY",
+      "name": "Infosys",
+      "type": "Equity",
+      "sector": "IT",
+      "quantity": 40,
+      "avg_cost": 1500,
+      "current_price": 1650,
+      "currency": "INR"
+    },
+    {
+      "ticker": "HDFCBANK",
+      "name": "HDFC Bank",
+      "type": "Equity",
+      "sector": "Banking",
+      "quantity": 35,
+      "avg_cost": 1550,
+      "current_price": 1620,
+      "currency": "INR"
+    },
+    {
+      "ticker": "TATAMOTORS",
+      "name": "Tata Motors",
+      "type": "Equity",
+      "sector": "Auto",
+      "quantity": 60,
+      "avg_cost": 600,
+      "current_price": 720,
+      "currency": "INR"
+    },
+    {
+      "ticker": "SUNPHARMA",
+      "name": "Sun Pharma",
+      "type": "Equity",
+      "sector": "Pharma",
+      "quantity": 30,
+      "avg_cost": 1050,
+      "current_price": 1250,
+      "currency": "INR"
+    },
+    {
+      "ticker": "ADANIENT",
+      "name": "Adani Enterprises",
+      "type": "Equity",
+      "sector": "Infra/Conglomerate",
+      "quantity": 20,
+      "avg_cost": 2200,
+      "current_price": 1950,
+      "currency": "INR"
+    },
+    {
+      "ticker": "WIPRO",
+      "name": "Wipro",
+      "type": "Equity",
+      "sector": "IT",
+      "quantity": 50,
+      "avg_cost": 420,
+      "current_price": 380,
+      "currency": "INR"
+    },
+    {
+      "ticker": "MARUTI",
+      "name": "Maruti Suzuki",
+      "type": "Equity",
+      "sector": "Auto",
+      "quantity": 10,
+      "avg_cost": 9000,
+      "current_price": 10500,
+      "currency": "INR"
+    },
+    {
+      "ticker": "TITAN",
+      "name": "Titan Company",
+      "type": "Equity",
+      "sector": "Consumer",
+      "quantity": 15,
+      "avg_cost": 2800,
+      "current_price": 3200,
+      "currency": "INR"
+    },
+    {
+      "ticker": "COALINDIA",
+      "name": "Coal India",
+      "type": "Equity",
+      "sector": "Energy/PSU",
+      "quantity": 80,
+      "avg_cost": 250,
+      "current_price": 310,
+      "currency": "INR"
+    },
+    {
+      "ticker": "ICICIBANK",
+      "name": "ICICI Bank",
+      "type": "Equity",
+      "sector": "Banking",
+      "quantity": 25,
+      "avg_cost": 850,
+      "current_price": 1020,
+      "currency": "INR"
+    },
+    {
+      "ticker": "UTI_NIFTY_50",
+      "name": "UTI Nifty 50 Direct Plan",
+      "type": "Mutual Fund",
+      "sector": "Index Fund",
+      "quantity": 200,
+      "avg_cost": 120,
+      "current_price": 145,
+      "currency": "INR"
+    },
+    {
+      "ticker": "MIRAE_ELSS",
+      "name": "Mirae Asset ELSS Fund",
+      "type": "Mutual Fund",
+      "sector": "ELSS/Tax Saving",
+      "quantity": 150,
+      "avg_cost": 80,
+      "current_price": 95,
+      "currency": "INR"
+    },
+    {
+      "ticker": "SBI_GILT",
+      "name": "SBI Magnum Gilt Fund",
+      "type": "Debt Fund",
+      "sector": "Government Securities",
+      "quantity": 300,
+      "avg_cost": 50,
+      "current_price": 52,
+      "currency": "INR"
+    },
+    {
+      "ticker": "DMART",
+      "name": "Avenue Supermarts (DMart)",
+      "type": "Equity",
+      "sector": "Retail",
+      "quantity": 12,
+      "avg_cost": 3600,
+      "current_price": 4200,
+      "currency": "INR"
+    }
+  ]
+}

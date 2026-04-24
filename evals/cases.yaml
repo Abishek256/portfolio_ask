@@ -1,0 +1,89 @@
+# Evaluation cases for Ask Your Portfolio
+#
+# Each case has:
+#   query: the user question
+#   expected_facts: key facts that MUST appear in the answer
+#   must_cite: source files that must be referenced
+#   must_not_cite: sources that must NOT appear (retrieval trap test)
+#   tool_expected: if set, this tool must have been called
+#   intent: why this test exists — what failure mode it catches
+
+cases:
+  - id: tc001
+    query: "What is my total portfolio P&L?"
+    expected_facts:
+      - "total invested"
+      - "current value"
+      - "winners"
+      - "losers"
+    tool_expected: compute_pnl
+    must_cite: []
+    must_not_cite: []
+    intent: >
+      Tool-calling test. The LLM must NOT compute these numbers itself.
+      Verifies that compute_pnl is triggered and real numbers are returned.
+
+  - id: tc002
+    query: "What is my sector allocation? How much is in IT?"
+    expected_facts:
+      - "Information Technology"
+      - "INFY"
+      - "WIPRO"
+      - "%"
+    tool_expected: get_sector_allocation
+    must_cite: []
+    must_not_cite: []
+    intent: >
+      Structured output + tool-calling test. Verifies sector breakdown is
+      computed deterministically, not hallucinated by the LLM.
+
+  - id: tc003
+    query: "What is the latest news about ADANIENT and what are the risks?"
+    expected_facts:
+      - "credit"
+      - "debt"
+      - "Moody"
+    must_cite:
+      - "008_adanient_credit_rating.md"
+    must_not_cite:
+      - "019_tatasteel_uk_drag.md"
+      - "015_bajajfinance_aum_record.md"
+    tool_expected: null
+    intent: >
+      Retrieval quality test. Verifies correct article is retrieved for ADANIENT.
+      must_not_cite checks that unrelated conglomerate news is not included.
+
+  - id: tc004
+    query: "What is the difference between INFY and WIPRO performance this quarter?"
+    expected_facts:
+      - "Infosys"
+      - "Wipro"
+      - "guidance"
+      - "margin"
+    must_cite:
+      - "001_infy_q3_results.md"
+      - "002_wipro_margin_pressure.md"
+    must_not_cite:
+      - "019_tatasteel_uk_drag.md"
+    tool_expected: null
+    intent: >
+      Intra-sector discrimination test. Both IT stocks must be retrieved and
+      compared. Tests that retrieval can distinguish two similar-sector stocks.
+      Hallucination-prone case — LLM may confuse INFY and WIPRO metrics.
+
+  - id: tc005
+    query: "What is XIRR and how does it differ from CAGR for my SIP investments?"
+    expected_facts:
+      - "irregular"
+      - "lump"
+      - "annualised"
+    must_cite:
+      - "glossary.md"
+    must_not_cite:
+      - "015_bajajfinance_aum_record.md"
+      - "016_zomato_profitability.md"
+    tool_expected: null
+    intent: >
+      Glossary retrieval test. Verifies that domain-specific definitions are
+      pulled from our controlled glossary source, not hallucinated from LLM
+      training data. Also tests that irrelevant financial news is not retrieved.

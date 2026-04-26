@@ -10,7 +10,7 @@ This log is written honestly. It documents what I used AI for, what I accepted, 
 
 ## Tools Used
 
-Claude (claude.ai) was my primary tool throughout the entire assignment. I used it for architecture design, code generation, debugging, data design reasoning, and as a reviewer that challenged my decisions before I built anything. The LLM powering the actual RAG system is Google Gemini (gemini-2.0-flash-lite). For embeddings I used sentence-transformers with BGE-small-en-v1.5 running locally, and FAISS as the vector store.
+Claude (claude.ai) was my primary tool throughout the entire assignment. I used it for architecture design, code generation, debugging, data design reasoning, and as a reviewer that challenged my decisions before I built anything. The LLM powering the actual RAG system is Groq (llama-3.3-70b-versatile), arrived at after switching through Gemini and OpenAI due to quota and billing issues documented below. For embeddings I used sentence-transformers with BGE-small-en-v1.5 running locally, and FAISS as the vector store.
 
 ---
 
@@ -42,25 +42,45 @@ The obstacle on Day 2 was finding bugs in AI-generated code. I reviewed every fi
 
 ---
 
-### Day 3 — Debugging the API (around 3 hours)
+### Day 3 — Debugging the API (around 5 hours, not the planned 3)
 
-This day was almost entirely debugging the Gemini API integration. I'm documenting this in detail because it illustrates a real lesson about AI-generated code and external dependencies.
+This day started with the Gemini integration and ended with Groq working end to end. It was the most chaotic day and I'm documenting it in full because it contains the most honest lessons.
+
+**Gemini — SDK deprecated, then quota zero**
 
 Claude generated llm.py using google-generativeai, a package Google deprecated in 2025. Runtime error: model not found on v1beta. I migrated to google-genai, the new SDK, but the new SDK kept routing to v1beta with authentication failures and model 404s persisted.
 
 I then abandoned the SDK entirely and rewrote llm.py using requests to call the REST API directly. This is when I flagged a trade-off that I think matters: raw REST means I now own the response contract. If Google changes the response shape, _extract_text() silently returns an empty string instead of crashing. I pushed back on this and changed the function to raise explicitly with the full response printed when the shape is unexpected. Failures should be loud, not silent.
 
-The /v1/ endpoint doesn't support system_instruction or tools. The /v1beta/ endpoint does, and with the key passed explicitly as a query parameter, authentication worked. The final model issue was that my API key only has access to Gemini 2.x models. I listed available models directly via GET /v1beta/models?key=... and identified gemini-2.0-flash-lite as the correct free-tier model. The right workflow is list-then-use, not assume-then-debug.
+After all that, the API returned 429 RESOURCE_EXHAUSTED with quota = 0. Not exhausted — zero allocated. Reset would not have fixed it. Enabling billing on the Google Cloud project also failed because the account had no active billing method that attached correctly.
 
-The lesson from Day 3 is that AI training data has a cutoff. Library deprecations, model availability changes, and API version differences after that cutoff will not be reflected in generated code. Every external dependency requires independent verification.
+**OpenAI — insufficient quota**
+
+Switched to OpenAI (gpt-4o-mini). Got insufficient_quota because new OpenAI accounts require prepaid credits even for minimal usage. No free tier that works out of the box for new accounts.
+
+**Groq — final resolution**
+
+Switched to Groq API. Free access, OpenAI-compatible interface, strong tool calling support. The switch required changing one import, one client instantiation, one model name, and one environment variable. No architectural changes. The fact that the system switched providers three times with minimal code changes is a direct result of the design decision to keep the LLM layer thin and replaceable.
+
+First model tried on Groq was llama3-groq-70b-8192-tool-use-preview, which had been decommissioned on January 6, 2025. Checked Groq's official deprecation page and switched to llama-3.3-70b-versatile which is the documented replacement.
+
+The lesson from Day 3 is that AI training data has a cutoff. Library deprecations, model availability changes, API version differences, and provider quota policies after that cutoff will not be reflected in generated code or suggestions. Every external dependency requires independent verification against current documentation.
 
 ---
 
-### Day 4 — Evals, README, and This Log (around 2 hours)
+### Day 4 — Integration Testing, Output Polish, Evals, README, and This Log (around 4 hours)
 
-Wrote 5 evaluation cases each designed to catch a different class of failure. One tests tool calling, one tests structured output, one tests retrieval discrimination for ADANIENT, one tests intra-sector comparison between INFY and WIPRO which is hallucination-prone, and one tests that glossary definitions come from glossary.md and not from LLM memory.
+Once Groq was working, the first end to end run confirmed tool calling was firing correctly. compute_pnl triggered on the P&L query and returned the real number. The LLM used the tool result rather than computing arithmetic itself. That was the moment Variant B was actually working.
 
-One test is designed to expose a known failure. The Tata Steel article shares the "Tata" token with Tata Motors and may be incorrectly retrieved for Tata Motors queries. I documented this rather than hiding it.
+But the output had problems. Sources were duplicating — the same file appearing three times because multiple chunks from it were retrieved. The LLM was using generic opening phrases like "The latest news about ADANIENT is that..." instead of leading with the fact. The separator line was printing each character on a new line due to Windows encoding handling the Unicode dash character incorrectly.
+
+Fixed all three. Source deduplication using order-preserving set logic. Added Rule 8 to the system prompt to eliminate generic phrasing. Replaced Unicode separator with ASCII.
+
+Then found that compute_pnl was firing on news queries — the tool description wasn't specific enough about when not to use it. Tightened the description with an explicit "Do NOT use this for news queries." Tool routing improved but llama-3.3-70b-versatile still occasionally reaches for compute_pnl when it detects portfolio position context. Accepted this as a model behaviour since the answers were actually more useful with the position data included.
+
+Wrote 5 evaluation cases each designed to catch a different class of failure. One tests tool calling, one tests structured output, one tests retrieval discrimination for ADANIENT, one tests intra-sector comparison between INFY and WIPRO, and one tests that glossary definitions come from glossary.md and not from LLM memory.
+
+The eval harness itself went through two rounds of fixing. First run was 1/5 because expected_facts strings were too literal — checking for exact words the LLM paraphrases rather than for computed values and concepts. Fixed the test cases to check for things like the actual P&L number rather than specific phrasing. Second run was 4/5. The one remaining failure (tc004, INFY vs WIPRO comparison) is a genuine retrieval limitation documented below.
 
 ---
 
@@ -110,6 +130,18 @@ Claude initially wrote _extract_text() with a bare except that returned an empty
 
 ---
 
+### Prompt 7 — Tool Routing Accuracy
+
+After the first successful run I noticed compute_pnl firing on news queries. The LLM was reaching for the tool whenever it detected portfolio position context, even when the query was purely about news.
+
+I strengthened the system prompt with two additions: an explicit instruction to trust tool results completely when they are provided, and a rule to never use tools unless the query genuinely requires computation. I also tightened the tool descriptions in TOOL_DEFINITIONS to make the intended scope clearer. The description for compute_pnl now explicitly says "Do NOT use this for news queries, sector questions, or general portfolio questions."
+
+The improvement was real but not complete. llama-3.3-70b-versatile still occasionally reaches for compute_pnl on queries involving specific portfolio holdings because it interprets "tell me about ADANIENT" as implicitly requiring position data. I decided to accept this rather than fight it further because the answers with position data are genuinely more useful. Documented as intended behaviour.
+
+The lesson here is that tool calling reliability depends heavily on prompt clarity and tool description specificity, not just model capability. The model is not wrong for wanting to provide position context — the description wasn't precise enough about when it shouldn't.
+
+---
+
 ## A Bug My AI Introduced
 
 The buffer overwrite bug in ingest.py was the clearest example. The chunking loop had this:
@@ -137,20 +169,38 @@ The eval case for ADANIENT specifically checks that the credit rating article is
 
 ---
 
+## Known Failures I Documented Instead of Hiding
+
+**tc004 — INFY vs WIPRO comparison**
+
+At k=4, portfolio position chunks for both stocks consume most of the retrieval budget. The WIPRO news article makes it in but the INFY news article does not. The LLM answers from position data (P&L figures) rather than quarterly performance news, which is what the query was actually asking about.
+
+Root cause: short comparison queries have stronger semantic overlap with portfolio chunks than with news articles. The fix would be a query rewriter that identifies comparison queries and adjusts retrieval strategy — higher k, or a filter that prioritises news chunks for performance questions.
+
+I left this as a documented failure in the eval harness. A 4/5 with one clearly explained failure is more honest and more impressive than 5/5 with tests designed to always pass.
+
+**Source deduplication was missing initially**
+
+The first version of the output was printing the same source file three times when multiple chunks from it were retrieved. This looked sloppy and was a real output quality issue. Fixed with order-preserving deduplication but the fact that it shipped initially is worth noting.
+
+---
+
 ## Time Split
 
-Reading the assignment and understanding the problem properly took about 45 minutes and was done before any code. Data design took around 1.5 hours, more than planned but worth it. Architecture design on paper took about an hour with no code written during that phase. The core build across all Python files took around 3 hours. Line-by-line bug review took 45 minutes and caught 3 bugs before the first run. API debugging consumed around 3 hours and was entirely unplanned. Writing the eval harness took 45 minutes. README and this log took about 1.5 hours. Total came to just over 12 hours.
+Reading the assignment and understanding the problem properly took about 45 minutes and was done before any code. Data design took around 1.5 hours, more than planned but worth it. Architecture design on paper took about an hour with no code written during that phase. The core build across all Python files took around 3 hours. Line-by-line bug review took 45 minutes and caught 3 bugs before the first run. API debugging consumed around 5 hours across Gemini, OpenAI, and Groq — entirely unplanned. Integration testing, output polish, and eval harness took about 2 hours. README and this log took about 1.5 hours. Total came to around 15 hours.
 
-Why I hit the ceiling: the API debugging consumed 3 hours that were not budgeted. If I were starting over, I would validate the LLM API connection with a minimal 5-line test script on Day 1 before building anything around it. That is the lesson.
+Why I went over: the API provider chain was the main culprit. Gemini had zero free tier quota allocated, OpenAI required prepaid credits, and Groq's recommended model had been decommissioned. Each switch required diagnosis, research, and implementation. If I were starting over, I would spend 30 minutes on Day 1 testing the LLM connection with a 5-line script before building anything around it. That alone would have saved 2 to 3 hours.
 
 ---
 
 ## What I Would Do With 2 More Days
 
-Add re-ranking: retrieve k=8, then use a cross-encoder to re-rank to k=4. This would improve precision for queries where semantic similarity alone is not enough.
+Add re-ranking: retrieve k=8, then use a cross-encoder to re-rank to k=4. This would improve precision for queries where semantic similarity alone is not enough, and would directly fix the tc004 failure.
 
 Add live price fetching to replace static current_price values in portfolio.json. P&L numbers are only as current as the last manual update right now.
 
 Add conversation memory so follow-up questions like "what about its debt levels?" can reference the previous turn.
 
-Investigate the Tata Steel retrieval failure more carefully. The shared "Tata" token between Tata Motors and Tata Steel articles is a name-confusion problem. I would experiment with ticker-level metadata filtering as a pre-retrieval step to eliminate this class of error before it reaches the embedding comparison.
+Add a query rewriter as a lightweight preprocessing step that identifies query type — news, position, definition, comparison — and adjusts retrieval strategy accordingly. Different k values and source filters per type would solve the intra-sector comparison failure cleanly.
+
+Investigate the Tata Steel retrieval failure more carefully. The shared "Tata" token between Tata Motors and Tata Steel articles is a name-confusion problem. Ticker-level metadata filtering as a pre-retrieval step would eliminate this class of error before it reaches the embedding comparison.

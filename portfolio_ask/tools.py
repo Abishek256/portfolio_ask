@@ -108,7 +108,8 @@ def get_sector_allocation(portfolio_path: str = "data/portfolio.json") -> Alloca
         if sector not in sector_map:
             sector_map[sector] = {"value": 0.0, "tickers": []}
         sector_map[sector]["value"] += current_value
-        sector_map[sector]["tickers"].append(h["ticker"])
+        if h["ticker"] not in sector_map[sector]["tickers"]:
+            sector_map[sector]["tickers"].append(h["ticker"])
 
     sectors = []
     for sector_name, data in sorted(sector_map.items(), key=lambda x: -x[1]["value"]):

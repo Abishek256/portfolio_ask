@@ -63,10 +63,10 @@ def chunk_text(text: str, source: str) -> List[Dict[str, str]]:
 
         # Merge short fragments with the next paragraph
         if len(para) < 30:
-            buffer = para + " "
+            buffer += para + " "
             continue
 
-        full_para = buffer + para
+        full_para = (buffer + para).strip()
         buffer = ""
         chunks.append({"text": full_para, "source": source})
 
@@ -95,7 +95,7 @@ def load_portfolio_chunks() -> List[Dict[str, str]]:
         current_value = h["quantity"] * h["current_price"]
         invested_value = h["quantity"] * h["avg_cost"]
         pnl = current_value - invested_value
-        pnl_pct = (pnl / invested_value) * 100
+        pnl_pct = (pnl / invested_value) * 100 if invested_value != 0 else 0
 
         text = (
             f"{h['ticker']} ({h['name']}) is a {h['type']} holding in the "

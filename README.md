@@ -46,6 +46,20 @@ To run the evaluation harness:
 python evals/run_evals.py
 ```
 
+**On Windows**, `make` is not available by default. Use the Python commands directly:
+
+```bash
+# Instead of make setup:
+pip install -r requirements.txt
+python -m portfolio_ask.ingest
+
+# Instead of make run:
+python -m portfolio_ask
+
+# Instead of make eval:
+python evals/run_evals.py
+```
+
 ---
 
 ## Architecture
